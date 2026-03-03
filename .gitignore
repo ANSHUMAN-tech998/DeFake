@@ -1,0 +1,15 @@
+# Environments
+venv/
+.env
+
+# Data and Models (Too big for GitHub)
+datasets/
+processed_data/
+*.task
+
+# Python junk
+__pycache__/
+*.pyc
+
+# IDE settings
+.vscode/
