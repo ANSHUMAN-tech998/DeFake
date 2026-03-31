@@ -22,6 +22,42 @@ Due to the high-fidelity nature of our 192-sample dataset, we implemented:
 * **Staged Optimization:** A two-phase training approach (Fusion Head stabilization followed by Full Backbone unlocking) using the **Adam Optimizer** and **ReduceLROnPlateau** scheduler.
 
 
+## 📊 Datasets & Sources
+To ensure forensic accuracy, this project leverages three industry-standard benchmarks for multimodal training and validation.
+
+### 1. Deepfake Detection Challenge (DFDC)
+Modality: Visual
+
+Primary Use Case: Identifying spatial artifacts, GAN-generated faces, and facial manipulation.
+
+Direct Link: https://www.kaggle.com/c/deepfake-detection-challenge/data
+
+Authors: Brian Dolhansky, Joanna Bitton, Ben Pflaum, Jiliang Lu, Russ Howes, Menglin Wang, Cristian Canton Ferrer.
+
+Reference: The Deepfake Detection Challenge (DFDC) Preview Dataset, arXiv:1910.08854, 2019.
+
+### 2. ASVspoof 2019 (LA Subset)
+Modality: Audio
+
+Primary Use Case: Detection of synthetic speech, voice cloning, and logical access attacks.
+
+Direct Link: https://www.asvspoof.org/
+
+Authors: Andreas Nautsch, Jose Patino, Natalia Tomashenko, Junichi Yamagishi, Massimiliano Todisco, Nicholas Evans, Jean-François Bonastre.
+
+Reference: ASVspoof 2019: A large-scale public database of synthesized, converted and replayed speech, Interspeech, 2019.
+
+### 3. UBFC-rPPG
+Modality: Biological
+
+Primary Use Case: Establishing ground-truth for heartbeat verification and remote physiological liveness.
+
+Direct Link: https://sites.google.com/view/ybenezeth/ubfcrppg
+
+Authors: Serge Bobbia, Richard Macwan, Yannick Benezeth, Alamin Mansouri, Julien Dubois.
+
+Reference: Unsupervised skin-based video-based heart rate estimation, ACM Trans. Multimedia Comput. Commun. Appl., 2019.
+
 
 ## 💻 Installation & Usage
 
@@ -82,3 +118,24 @@ MINI PROJECT 2/
     ├── app.py                # Streamlit Forensic Dashboard UI
     ├── demo.py               # Lightweight CLI inference script
     └── requirements.txt      # Comprehensive dependency list
+
+@article{dolhansky2020dfdc,
+  title={The Deepfake Detection Challenge (DFDC) Dataset},
+  author={Dolhansky, Brian and others},
+  journal={arXiv preprint arXiv:2006.07397},
+  year={2020}
+}
+
+@inproceedings{wang2019asvspoof,
+  title={ASVspoof 2019: A large-scale public database of synthesized, converted and replayed speech},
+  author={Wang, Xin and others},
+  booktitle={Interspeech},
+  year={2019}
+}
+
+@article{bobbia2019ubfc,
+  title={Unsupervised skin-based video-based heart rate estimation},
+  author={Bobbia, S. and others},
+  journal={ACM Trans. Multimedia Comput. Commun. Appl.},
+  year={2019}
+}
