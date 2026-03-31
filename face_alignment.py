@@ -2,6 +2,7 @@ import cv2
 import os
 import urllib.request
 import mediapipe as mp
+import numpy as np
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from config import IMG_SIZE
@@ -20,63 +21,90 @@ base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
 options = vision.FaceLandmarkerOptions(
     base_options=base_options,
     output_face_blendshapes=False,
-    # CHANGE 'face' TO 'facial' HERE:
     output_facial_transformation_matrixes=False, 
     num_faces=1
 )
 detector = vision.FaceLandmarker.create_from_options(options)
 
-def crop_to_face(image_path, output_path):
-    # MediaPipe Tasks requires its own Image format
-    mp_image = mp.Image.create_from_file(image_path)
-    detection_result = detector.detect(mp_image)
+def process_video_folder(input_folder, output_folder):
+    """
+    Scans a folder of frames and ensures at least one face crop is saved.
+    """
+    frame_files = [f for f in os.listdir(input_folder) if f.lower().endswith(('.jpg', '.png'))]
+    frame_files.sort() # Ensure we start from the beginning of the video
 
-    if detection_result.face_landmarks:
-        img_cv2 = cv2.imread(image_path)
-        h, w, _ = img_cv2.shape
+    success = False
+    
+    # FALLBACK LOGIC: Try frames until we find a face
+    for frame_file in frame_files:
+        input_path = os.path.join(input_folder, frame_file)
         
-        # Get all landmark points for this face
-        landmarks = detection_result.face_landmarks[0]
-        all_x = [l.x * w for l in landmarks]
-        all_y = [l.y * h for l in landmarks]
-        
-        # Create the bounding box
-        x_min, x_max = int(min(all_x)), int(max(all_x))
-        y_min, y_max = int(min(all_y)), int(max(all_y))
+        # MediaPipe processing
+        mp_image = mp.Image.create_from_file(input_path)
+        detection_result = detector.detect(mp_image)
 
-        # Add 20% padding to ensure we capture the whole face for rPPG
-        pad_w = int((x_max - x_min) * 0.2)
-        pad_h = int((y_max - y_min) * 0.2)
-        
-        face_crop = img_cv2[max(0, y_min-pad_h):min(h, y_max+pad_h), 
-                            max(0, x_min-pad_w):min(w, x_max+pad_w)]
-        
-        if face_crop.size > 0:
-            face_final = cv2.resize(face_crop, IMG_SIZE)
-            cv2.imwrite(output_path, face_final)
-            return True
-    return False
+        if detection_result.face_landmarks:
+            img_cv2 = cv2.imread(input_path)
+            if img_cv2 is None: continue
+            
+            h, w, _ = img_cv2.shape
+            landmarks = detection_result.face_landmarks[0]
+            
+            # Extract coordinates
+            all_x = [l.x * w for l in landmarks]
+            all_y = [l.y * h for l in landmarks]
+            
+            x_min, x_max = int(min(all_x)), int(max(all_x))
+            y_min, y_max = int(min(all_y)), int(max(all_y))
+
+            # Padding for rPPG (forehead/cheeks)
+            pad_w = int((x_max - x_min) * 0.25)
+            pad_h = int((y_max - y_min) * 0.25)
+            
+            y1, y2 = max(0, y_min-pad_h), min(h, y_max+pad_h)
+            x1, x2 = max(0, x_min-pad_w), min(w, x_max+pad_w)
+            
+            face_crop = img_cv2[y1:y2, x1:x2]
+            
+            if face_crop.size > 0:
+                face_final = cv2.resize(face_crop, IMG_SIZE)
+                output_path = os.path.join(output_folder, frame_file)
+                cv2.imwrite(output_path, face_final)
+                success = True
+                # Once we find a good face for this video, we can move to the next video
+                # (You can remove 'break' if you want to crop EVERY frame)
+                break 
+
+    return success
 
 if __name__ == "__main__":
-    input_root = os.path.join("processed_data", "frames")
-    output_root = os.path.join("processed_data", "face_crops")
+    from config import TRAIN_ROOT, TEST_ROOT
     
-    if not os.path.exists(input_root):
-        print(f"❌ Error: {input_root} not found. Run visual_extraction.py first!")
-    else:
-        print("🚀 Starting MediaPipe Face Alignment on Python 3.13...")
-        # ... (rest of your folder looping logic)
-        folders = os.listdir(input_root)
+    # We will process both your Training and Testing partitions
+    partitions = [TRAIN_ROOT, TEST_ROOT]
+    
+    print("🚀 Starting Resilient Face Alignment on Splits...")
+    
+    for part in partitions:
+        # In your split, the frames are inside the 'face_crops' folder 
+        # but we need to check if they are actually there or in a 'frames' folder
+        input_root = os.path.join(part, "face_crops") 
         
+        if not os.path.exists(input_root):
+            print(f"⚠️ Warning: {input_root} not found. Skipping partition.")
+            continue
+
+        print(f"📂 Processing partition: {part}")
+        folders = [f for f in os.listdir(input_root) if os.path.isdir(os.path.join(input_root, f))]
+        
+        total_fixed = 0
         for video_folder in folders:
             folder_path = os.path.join(input_root, video_folder)
-            save_folder = os.path.join(output_root, video_folder)
-            os.makedirs(save_folder, exist_ok=True)
             
-            print(f"Aligning faces for: {video_folder}")
-            for frame_file in os.listdir(folder_path):
-                input_path = os.path.join(folder_path, frame_file)
-                output_path = os.path.join(save_folder, frame_file)
-                crop_to_face(input_path, output_path)
+            # Check if the folder is empty
+            if not any(f.lower().endswith(('.jpg', '.png')) for f in os.listdir(folder_path)):
+                print(f"🔍 Empty folder found: {video_folder}. Attempting recovery...")
                 
-        print(f"✅ Alignment complete! Clean crops saved in: {output_root}")
+                # IMPORTANT: Since you probably deleted the raw 'frames' folder, 
+                # we have to extract them from the original .mp4 / .avi video again.
+                # Do you still have the original videos?

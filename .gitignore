@@ -1,15 +1,11 @@
-# Environments
-venv/
-.env
-
-# Data and Models (Too big for GitHub)
+# Ignore Datasets
 datasets/
 processed_data/
+
+# Ignore Virtual Environment
+venv/
+.venv/
+
+# Ignore Large Weights
+*.pth
 *.task
-
-# Python junk
-__pycache__/
-*.pyc
-
-# IDE settings
-.vscode/
